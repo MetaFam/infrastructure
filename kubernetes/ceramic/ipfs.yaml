@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ipfs
+  namespace: ceramic
+  labels:
+    app: ipfs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ipfs
+  serviceName: ipfs
+  template:
+    metadata:
+      labels:
+        app: ipfs
+    spec:
+      containers:
+        - name: ipfs-daemon
+          image: ceramicnetwork/ipfs-daemon:latest
+          envFrom:
+            - configMapRef:
+                name: ipfs-config
+          ports:
+            - name: swarm
+              containerPort: 4011
+            - name: swarm-ws
+              containerPort: 4012
+            - name: api
+              containerPort: 5011
+            - name: healthcheck
+              containerPort: 8011
+            - name: gateway
+              containerPort: 9011
+          startupProbe:
+            httpGet:
+              port: healthcheck
+              path: /
+            failureThreshold: 20
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              port: healthcheck
+              path: /
+            failureThreshold: 1
+            periodSeconds: 5
+          volumeMounts:
+            - name: ipfs-data
+              mountPath: /data/ipfs
+  volumeClaimTemplates:
+    - metadata:
+        name: ipfs-data
+      spec:
+        storageClassName: standard-rwo
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ipfs-config
+  namespace: ceramic
+  labels:
+    app: ipfs
+data:
+  CERAMIC_NETWORK: "elp"
+  IPFS_SWARM_TCP_PORT: "4011"
+  IPFS_SWARM_WS_PORT: "4012"
+  IPFS_ENABLE_API: "true"
+  IPFS_API_PORT: "5011"
+  HEALTHCHECK_ENABLED: "true"
+  HEALTHCHECK_PORT: "8011"
+  IPFS_API_TIMEOUT: "120000"
+  IPFS_ENABLE_PUBSUB: "true"
+  IPFS_ENABLE_GATEWAY: "true"
+  IPFS_GATEWAY_PORT: "9011"
+  IPFS_DHT_SERVER_MODE: "true"
+  IPFS_PATH: "/data/ipfs"
+  NODE_TLS_REJECT_UNAUTHORIZED: "0"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs
+  namespace: ceramic
+  labels:
+    app: ipfs
+spec:
+  type: ClusterIP
+  selector:
+    app: ipfs
+  ports:
+    - name: swarm
+      port: 4011
+      targetPort: swarm
+    - name: swarm-ws
+      port: 4012
+      targetPort: swarm-ws
+    - name: api
+      port: 5011
+      targetPort: api
+    - name: gateway
+      port: 9011
+      targetPort: gateway
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs-public
+  namespace: ceramic
+  labels:
+    app: ipfs
+spec:
+  type: LoadBalancer
+  selector:
+    app: ipfs
+  ports:
+    - name: swarm
+      port: 4011
+      targetPort: swarm
+    - name: swarm-ws
+      port: 4012
+      targetPort: swarm-ws

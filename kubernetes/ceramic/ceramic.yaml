@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ceramic
+  namespace: ceramic
+  labels:
+    app: ceramic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ceramic
+  serviceName: ceramic
+  template:
+    metadata:
+      labels:
+        app: ceramic
+    spec:
+      containers:
+        - name: js-ceramic
+          image: ceramicnetwork/js-ceramic:latest
+          env:
+            - name: NODE_ENV
+              value: "production"
+          ports:
+            - name: api
+              containerPort: 7007
+          startupProbe:
+            httpGet:
+              port: api
+              path: /api/v0/node/healthcheck
+            failureThreshold: 20
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              port: api
+              path: /api/v0/node/healthcheck
+            failureThreshold: 1
+            periodSeconds: 5
+          volumeMounts:
+            - name: ceramic-config
+              subPath: daemon.config.json
+              mountPath: /root/.ceramic/daemon.config.json
+            - name: ceramic-data
+              mountPath: /data/ceramic
+      volumes:
+        - name: ceramic-config
+          configMap:
+            name: ceramic-config
+  volumeClaimTemplates:
+    - metadata:
+        name: ceramic-data
+      spec:
+        storageClassName: standard-rwo
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ceramic-config
+  namespace: ceramic
+  labels:
+    app: ceramic
+data:
+  daemon.config.json: |
+    {
+        "anchor": {
+            "ethereum-rpc-url": "https://mainnet.infura.io/v3/fa20552779b3433586a34f934a449498"
+        },
+        "http-api": {
+            "cors-allowed-origins": [
+                ".*"
+            ]
+        },
+        "ipfs": {
+            "mode": "remote",
+            "host": "http://ipfs:5011"
+        },
+        "logger": {
+            "log-level": 2
+        },
+        "network": {
+            "name": "elp"
+        },
+        "node": {},
+        "state-store": {
+            "mode": "fs",
+            "local-directory": "/data/ceramic"
+        }
+    }
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ceramic-public
+  namespace: ceramic
+  labels:
+    app: ceramic
+spec:
+  type: LoadBalancer
+  selector:
+    app: ceramic
+  ports:
+    - name: api
+      port: 7007
+      targetPort: api
