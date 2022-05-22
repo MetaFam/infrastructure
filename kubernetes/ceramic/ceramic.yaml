@@ -35,7 +35,7 @@ spec:
             httpGet:
               port: api
               path: /api/v0/node/healthcheck
-            failureThreshold: 1
+            failureThreshold: 2
             periodSeconds: 5
           volumeMounts:
             - name: ceramic-config

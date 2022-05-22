@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: ipfs-daemon
-          image: ceramicnetwork/ipfs-daemon:latest
+          image: ceramicnetwork/go-ipfs-daemon:latest
           envFrom:
             - configMapRef:
                 name: ipfs-config
