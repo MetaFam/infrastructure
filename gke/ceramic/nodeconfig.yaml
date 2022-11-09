@@ -1,0 +1,7 @@
+# https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size
+# https://cloud.google.com/kubernetes-engine/docs/how-to/node-system-config
+
+kubeletConfig: {}
+linuxConfig:
+ sysctl:
+   net.core.rmem_max: '2500000'
